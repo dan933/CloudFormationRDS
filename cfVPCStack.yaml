@@ -1,0 +1,359 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: VPC Setup for RDS
+
+Parameters:
+
+  StackNameParameter:
+    Type: String
+    Description: Stack name (LOWERCASE ONLY)
+
+  VPCRegionParameter:
+    Type: String
+    Description: VPC Region
+
+  CidrBlockParameter:
+    Type: String
+    Description: VPC CIDR Block
+
+  AZ1Parameter:
+    Type: String
+    Description: Availability Zone 1
+
+  CidrBlockPub1Parameter:
+    Type: String
+    Description: Public Subnet 1 CIDR Block
+
+  AZ2Parameter:
+    Type: String
+    Description: Availability Zone 2
+
+  CidrBlockPub2Parameter:
+    Type: String
+    Description: Public Subnet 2 CIDR Block
+
+Resources:
+
+  ##############################################################
+  # VPC & SUBNETS
+  ##############################################################
+  # Build VPC containing two public and two private subnets 
+  # distributed across two Availability Zones.
+  
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref CidrBlockParameter
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub 'VPC ${AWS::StackName}'
+        - Key: Lab
+          Value: cloudproject07
+
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref AZ1Parameter
+      CidrBlock: !Ref CidrBlockPub1Parameter
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub 'PublicSubnet1 ${AWS::StackName}'
+        - Key: Lab
+          Value: cloudproject07
+      VpcId: !Ref VPC
+
+  PublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref AZ2Parameter
+      CidrBlock: !Ref CidrBlockPub2Parameter
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub 'PublicSubnet2 ${AWS::StackName}'
+        - Key: Lab
+          Value: cloudproject07
+      VpcId: !Ref VPC
+
+  ##############################################################
+  # INTERNET GATEWAY
+  ##############################################################
+  # Create an Internet Gateway (path to the internet for incoming 
+  # and outgoing traffic.
+  
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub 'IGW ${AWS::StackName}'
+        - Key: Lab
+          Value: cloudproject07
+
+  IGWAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  ##############################################################
+  # ROUTE TABLES
+  ##############################################################
+  # Public and private route tables. Direct internet traffic to
+  # Internet Gateway, keep local traffic local. 
+
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub 'PublicRT ${AWS::StackName}'
+        - Key: Lab
+          Value: cloudproject07
+
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet1RTAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RTAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+      
+  ##############################################################
+  # SECURITY GROUPS
+  ##############################################################
+  # Database security group. 
+  # Allows incoming TCP ports 1433 (MSSql), 3306 (MariaDB/MySQL) 
+  # and 5432 (PostgreSQL) from private network.
+  # Allows outgoing to anywhere on public network.
+
+  SecurityGroupDB:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: security group DB
+      GroupName: SecurityGroupDB
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: 1
+          ToPort: 65000
+          CidrIp: !Ref CidrBlockParameter
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 1433
+          ToPort: 1433
+          CidrIp: !Ref CidrBlockParameter
+      Tags:
+        - Key: Name
+          Value: !Sub 'SG-DB ${AWS::StackName}'
+        - Key: Lab
+          Value: cloudproject07
+      VpcId: !Ref VPC
+
+  SecurityGroupNat:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: security group NAT
+      GroupName: SecurityGroupNAT
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 1433
+        ToPort: 1433
+        CidrIp: !Ref CidrBlockParameter
+      Tags:
+        - Key: Name
+          Value: !Sub 'SG-NAT ${AWS::StackName}'
+      VpcId: !Ref VPC
+
+  ##############################################################
+  # NETWORK ACLs
+  ##############################################################
+  # Network Access Control Lists. Stateless subnet-level packet 
+  # filtering allowing all traffic in/out in public subnets, and
+  # all local traffic in/out in private subnets.
+ 
+  SubnetPrivateAcl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub 'NACL-Private ${AWS::StackName}'
+        - Key: Lab
+          Value: cloudproject07
+
+  SubnetPrivateAclEgressEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref SubnetPrivateAcl
+      RuleNumber: 100
+      RuleAction: allow
+      Protocol: "-1"
+      Egress: true
+      CidrBlock: !Ref CidrBlockParameter
+      Icmp:
+        Code: "-1"
+        Type: "-1"
+      PortRange:
+        From: 1
+        To: 65535
+
+  SubnetPrivateAclIngressEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref SubnetPrivateAcl
+      RuleNumber: 100
+      RuleAction: allow
+      Protocol: 6
+      Egress: false
+      CidrBlock: !Ref CidrBlockParameter
+      Icmp:
+        Code: "-1"
+        Type: "-1"
+      PortRange:
+        From: 1
+        To: 65535
+        
+  SubnetPublicAcl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub 'NACL-Public ${AWS::StackName}'
+        - Key: Lab
+          Value: cloudproject07
+
+  SubnetPublicAclEgressEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref SubnetPublicAcl
+      RuleNumber: 150
+      RuleAction: allow
+      Protocol: "-1"
+      Egress: true
+      CidrBlock: "0.0.0.0/0"
+      Icmp:
+        Code: "-1"
+        Type: "-1"
+      PortRange:
+        From: 1
+        To: 65535
+
+  SubnetPublicAclIngressEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref SubnetPublicAcl
+      RuleNumber: 100
+      RuleAction: allow
+      Protocol: 6
+      Egress: false
+      CidrBlock: "0.0.0.0/0"
+      Icmp:
+        Code: "-1"
+        Type: "-1"
+      PortRange:
+        From: 1
+        To: 65535
+
+  SubnetPublic1AclAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      NetworkAclId: !Ref SubnetPublicAcl
+
+  SubnetPublic2AclAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      NetworkAclId: !Ref SubnetPublicAcl
+      
+  ##############################################################
+  # DNS PRIVATE ZONE
+  ##############################################################
+  # Create a private DNS zone for network-internal use, based on
+  # the stack name. Enables IP addresses to be decoupled from 
+  # specific services.
+
+  DNSZone:
+    Type: 'AWS::Route53::HostedZone'
+    Properties:
+      HostedZoneConfig:
+        Comment: Private zone
+      Name: !Sub '${AWS::StackName}.net'
+      VPCs:
+        - VPCId: !Ref VPC
+          VPCRegion: !Ref VPCRegionParameter
+      HostedZoneTags:
+        - Key: Lab
+          Value: cloudproject07
+          
+Outputs:
+
+  CidrBlock:
+    Description: VPC CIDR block
+    Value: !Ref CidrBlockParameter
+    Export:
+      Name: !Sub '${AWS::StackName}-CidrBlock'
+
+  VpcID:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VpcId'
+
+  PublicSubnet1ID:
+    Description: Public Subnet 1 ID
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnet1Id'
+
+  PublicSubnet2ID:
+    Description: Public Subnet 2 ID
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnet2Id'
+
+  SecurityGroupDbID:
+    Description: Security Group DB ID
+    Value: !Ref SecurityGroupDB
+    Export:
+      Name: !Sub '${AWS::StackName}-SG-DbId'
+
+  SecurityGroupNatID:
+    Description: Security Group NAT ID
+    Value: !Ref SecurityGroupNat
+    Export:
+      Name: !Sub '${AWS::StackName}-SG-NatId'
+      
+  DNSZoneID:
+    Description: DNS Zone ID
+    Value: !Ref DNSZone
+    Export:
+      Name: !Sub '${AWS::StackName}-DNSZoneId'
+
+  DomainName:
+    Description: Private domain name
+    Value: !Sub '${AWS::StackName}.net'
+    Export:
+      Name: !Sub '${AWS::StackName}-DomainName'
