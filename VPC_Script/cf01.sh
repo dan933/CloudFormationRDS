@@ -9,10 +9,10 @@ if [ -z $Action ]; then
 elif [ $Action == 'create' ]; then
 
         aws cloudformation create-stack \
-                --stack-name $StackNameParameter \
-                --template-body file://cfVPCStack.yaml \
+                --stack-name $Stack1Parameter \
+                --template-body file://cf01.yaml \
                 --parameters \
-                ParameterKey=StackNameParameter,ParameterValue=$StackNameParameter \
+                ParameterKey=Stack1Parameter,ParameterValue=$Stack1Parameter \
                 ParameterKey=VPCRegionParameter,ParameterValue=$VPCRegionParameter \
                 ParameterKey=CidrBlockParameter,ParameterValue=$CidrBlockParameter \
                 ParameterKey=AZ1Parameter,ParameterValue=$AZ1Parameter \
@@ -24,10 +24,10 @@ elif [ $Action == 'create' ]; then
 elif [ $Action == 'update' ]; then
 
         aws cloudformation update-stack \
-                --stack-name $StackNameParameter \
+                --stack-name $Stack1Parameter \
                 --template-body file://cf01.yaml \
                 --parameters \
-                ParameterKey=StackNameParameter,ParameterValue=$StackNameParameter \
+                ParameterKey=Stack1Parameter,ParameterValue=$Stack1Parameter \
                 ParameterKey=VPCRegionParameter,ParameterValue=$VPCRegionParameter \
                 ParameterKey=CidrBlockParameter,ParameterValue=$CidrBlockParameter \
                 ParameterKey=AZ1Parameter,ParameterValue=$AZ1Parameter \
@@ -43,8 +43,9 @@ elif [ $Action == 'update' ]; then
 elif [ $Action == 'delete' ]; then
 
         aws cloudformation delete-stack \
-                --stack-name $StackNameParameter \
+                --stack-name $Stack1Parameter \
                 --region $Region
+        echo "Deleting Stack"
 
 else
 

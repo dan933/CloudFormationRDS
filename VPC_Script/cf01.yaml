@@ -4,7 +4,7 @@ Description: VPC Setup for RDS
 
 Parameters:
 
-  StackNameParameter:
+  Stack1Parameter:
     Type: String
     Description: Stack name (LOWERCASE ONLY)
 
@@ -152,12 +152,12 @@ Resources:
         - IpProtocol: '-1'
           FromPort: 1
           ToPort: 65000
-          CidrIp: !Ref CidrBlockParameter
+          CidrIp: 0.0.0.0/0
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 1433
           ToPort: 1433
-          CidrIp: !Ref CidrBlockParameter
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub 'SG-DB ${AWS::StackName}'

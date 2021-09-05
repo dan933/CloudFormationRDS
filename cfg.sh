@@ -5,7 +5,7 @@ Action=$1
 
 # Project handle (lowercase a-z)
 # Used extensively to name CF stacks, buckets, DNS zones, SSH keys, etc.
-Project="VPCStackProject"
+Project="vpcstackproject"
 
 # The AWS region
 Region="us-east-1"
@@ -38,13 +38,13 @@ WWWCertificateArn="arn:aws:acm:us-east-1:123456789012:certificate/abcdefgh-1234-
 WWWDevCertificateArn="arn:aws:acm:us-east-1:123456789012:certificate/abcdefgh-1234-1234-1234-abcdefghijkl"
 
 # Database details
-DBUsername='dbuser'
-DBPassword='dbpass'
-DBName="dbname"
-DBType="db.t3.xlarge"
-DBEngine="sqlserver-se"
-DBVersion="15.00.4073.23.v1"
-DBZone="ap-southeast-2a"
+DBUsername='admin'
+DBPassword='daniel180'
+DBName="NH-Instance"
+DBType="db.t2.micro"
+DBEngine="sqlserver-ex"
+DBVersion="14.00.3381.3.v1"
+DBZone="us-east-1b"
 DBStorage="20"
 DBSql="s3://bucket.name/db.sql"
 #DBWriterDNS="db.abcdefghijkl.ap-southeast-2.rds.amazonaws.com"
