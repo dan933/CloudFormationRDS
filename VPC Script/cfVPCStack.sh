@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./cfg.sh
+source ../cfg.sh
 
 if [ -z $Action ]; then
 
@@ -9,7 +9,7 @@ if [ -z $Action ]; then
 elif [ $Action == 'create' ]; then
 
         aws cloudformation create-stack \
-                --stack-name $Stack1Parameter \
+                --stack-name $StackNameParameter \
                 --template-body file://cfVPCStack.yaml \
                 --parameters \
                 ParameterKey=StackNameParameter,ParameterValue=$StackNameParameter \
@@ -24,10 +24,10 @@ elif [ $Action == 'create' ]; then
 elif [ $Action == 'update' ]; then
 
         aws cloudformation update-stack \
-                --stack-name $Stack1Parameter \
+                --stack-name $StackNameParameter \
                 --template-body file://cf01.yaml \
                 --parameters \
-                ParameterKey=Stack1Parameter,ParameterValue=$Stack1Parameter \
+                ParameterKey=StackNameParameter,ParameterValue=$StackNameParameter \
                 ParameterKey=VPCRegionParameter,ParameterValue=$VPCRegionParameter \
                 ParameterKey=CidrBlockParameter,ParameterValue=$CidrBlockParameter \
                 ParameterKey=AZ1Parameter,ParameterValue=$AZ1Parameter \
@@ -42,10 +42,8 @@ elif [ $Action == 'update' ]; then
 
 elif [ $Action == 'delete' ]; then
 
-        aws s3 rb s3://${FlowlogBucketParameter} --force
-
         aws cloudformation delete-stack \
-                --stack-name $Stack1Parameter \
+                --stack-name $StackNameParameter \
                 --region $Region
 
 else

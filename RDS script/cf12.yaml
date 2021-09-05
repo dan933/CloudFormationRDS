@@ -1,0 +1,79 @@
+---
+AWSTemplateFormatVersion: "2010-09-09" 
+
+Description: 
+  Build an MSSQL database.
+
+Parameters:
+
+  VPCStackParameter:
+    Type: String
+  
+  DBNameParameter:
+    Type: String
+     
+  DBUsernameParameter:
+    Type: String
+    
+  DBPasswordParameter:
+    Type: String
+    
+  DBTypeParameter:
+    Type: String
+    
+  DBEngineParameter:
+    Type: String
+    
+  DBVersionParameter:
+    Type: String
+
+  DBZoneParameter:
+    Type: String
+    
+  DBStorageParameter:
+    Type: String
+
+Resources:
+
+  SubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: "Database subnet group"
+      DBSubnetGroupName: "DatabaseSubnetGroup"
+      SubnetIds: 
+        - {"Fn::ImportValue" : !Sub "${VPCStackParameter}-PrivateSubnet1Id"}
+        - {"Fn::ImportValue" : !Sub "${VPCStackParameter}-PrivateSubnet2Id"}
+
+  Database:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      AvailabilityZone: !Ref DBZoneParameter
+      DBSubnetGroupName: !Ref SubnetGroup
+      DBInstanceIdentifier: !Ref DBNameParameter
+      DBName: '' 
+      DBInstanceClass: !Ref DBTypeParameter
+      AllocatedStorage: !Ref DBStorageParameter
+      Engine: !Ref DBEngineParameter
+      EngineVersion: !Ref DBVersionParameter
+      MasterUsername: !Ref DBUsernameParameter
+      MasterUserPassword: !Ref DBPasswordParameter
+      VPCSecurityGroups:
+        - {"Fn::ImportValue" : !Sub "${VPCStackParameter}-SG-DbId"}
+      StorageEncrypted: true
+      LicenseModel: license-included
+      #MonitoringInterval: '0'
+      #MonitoringRoleArn: 'arn:aws:iam::123456789012:role/rds-monitoring-role'
+
+Outputs:
+
+  DBAddress:
+    Description: Database endpoint address
+    Value: !GetAtt Database.Endpoint.Address
+    Export:
+      Name: !Sub '${VPCStackParameter}-DBAddress'
+      
+  DBPort:
+    Description: Database port
+    Value: !GetAtt Database.Endpoint.Port
+    Export:
+      Name: !Sub '${VPCStackParameter}-DBPort'
